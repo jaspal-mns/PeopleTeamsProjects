@@ -7,9 +7,9 @@ namespace PeopleTeamsProjectsRepository.Repository;
 public class Repositories
 {
     // Instantiate in-memory repositories with seeded data
-    public IRepository<Person> People { get;  }  = new InMemoryRepository<Person>(SeedData.People);
-    public IRepository<Team> Teams { get;  }    = new InMemoryRepository<Team>(SeedData.Teams);
-    public IRepository<Project> Projects { get;  }  = new InMemoryRepository<Project>(SeedData.Projects);
+    public IRepository<Person> People { get; } = new InMemoryRepository<Person>(SeedData.People);
+    public IRepository<Team> Teams { get; } = new InMemoryRepository<Team>(SeedData.Teams);
+    public IRepository<Project> Projects { get; } = new InMemoryRepository<Project>(SeedData.Projects);
     // ---- Local Functions --------------------------------------
     public string ToFullList()
     {
@@ -53,5 +53,27 @@ public class Repositories
         }
 
         return builder.ToString();
+    }
+
+    //AddPersonToTeam
+    public string AddPersonToTeam(string personName, string teamName)
+    {
+        var person = People.GetAll().FirstOrDefault(p => p.Name.Equals(personName, StringComparison.OrdinalIgnoreCase));
+        if (person is null)
+            return $"Person '{personName}' not found.";
+
+        var team = Teams.GetAll().FirstOrDefault(t => t.Name.Equals(teamName, StringComparison.OrdinalIgnoreCase));
+        if (team is null)
+            return $"Team '{teamName}' not found.";
+
+        // Update person with new team
+        person = person with { TeamId = team.Id };
+        People.Update(person);
+
+        // Add person to team's member list
+        team = team with { MemberIds = team.MemberIds.Append(person.Id).ToList() };
+        Teams.Update(team);
+
+        return $"Added {person.Name} to {team.Name}.";
     }
 }
