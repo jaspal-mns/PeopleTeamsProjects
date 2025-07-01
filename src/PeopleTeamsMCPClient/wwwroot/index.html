@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>People Teams Chat</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .chat-container { max-width: 800px; margin: 0 auto; }
+        .messages { height: 400px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+        .input-container { display: flex; gap: 10px; }
+        .message-input { flex: 1; padding: 10px; border: 1px solid #ccc; }
+        .send-button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .message { margin-bottom: 10px; }
+        .user-message { color: #007bff; font-weight: bold; }
+        .bot-message { color: #333; }
+        .bot-content { white-space: pre-wrap; }
+        .bot-content table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .bot-content th, .bot-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .bot-content th { background-color: #f2f2f2; font-weight: bold; }
+        .bot-content code { background-color: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        .bot-content pre { background-color: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        function ChatApp() {
+            const [messages, setMessages] = useState([]);
+            const [inputValue, setInputValue] = useState('');
+            const [connection, setConnection] = useState(null);
+            const messagesEndRef = useRef(null);
+            
+            useEffect(() => {
+                const newConnection = new signalR.HubConnectionBuilder()
+                    .withUrl("/chathub")
+                    .build();
+                
+                setConnection(newConnection);
+                
+                newConnection.start()
+                    .then(() => console.log('Connected to SignalR'))
+                    .catch(err => {
+                        console.error('SignalR connection error:', err);
+                        setMessages(prev => [...prev, { type: 'bot', content: 'Connection failed. Please refresh the page.' }]);
+                    });
+                
+                newConnection.on("ReceiveMessage", (message) => {
+                    setMessages(prev => [...prev, { type: 'bot', content: message }]);
+                });
+                
+                return () => newConnection.stop();
+            }, []);
+            
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, [messages]);
+            
+            const sendMessage = async () => {
+                if (inputValue.trim() && connection) {
+                    setMessages(prev => [...prev, { type: 'user', content: inputValue }]);
+                    await connection.invoke("SendMessage", inputValue);
+                    setInputValue('');
+                }
+            };
+            
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            };
+            
+            return (
+                <div className="chat-container">
+                    <h1>People Teams Chat</h1>
+                    <div className="messages">
+                        {messages.map((msg, index) => (
+                            <div key={index} className="message">
+                                <span className={msg.type === 'user' ? 'user-message' : 'bot-message'}>
+                                    {msg.type === 'user' ? 'You: ' : 'Bot: '}
+                                </span>
+                                {msg.type === 'user' ? (
+                                    msg.content
+                                ) : (
+                                    <div className="bot-content" dangerouslySetInnerHTML={{ __html: window.marked ? marked.parse(msg.content) : msg.content }} />
+                                )}
+                            </div>
+                        ))}
+                        <div ref={messagesEndRef} />
+                    </div>
+                    <div className="input-container">
+                        <input
+                            type="text"
+                            className="message-input"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            placeholder="Type your message..."
+                        />
+                        <button className="send-button" onClick={sendMessage}>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        
+        ReactDOM.render(<ChatApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
