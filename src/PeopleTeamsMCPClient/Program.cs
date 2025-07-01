@@ -3,11 +3,6 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using Microsoft.AspNetCore.SignalR;
 using System.Diagnostics;
-using OpenTelemetry.Trace;     
-using OpenTelemetry.Exporter;
-
-
-using OpenTelemetry.Logs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
