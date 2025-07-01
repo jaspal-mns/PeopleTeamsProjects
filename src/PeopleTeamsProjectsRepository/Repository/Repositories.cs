@@ -1,11 +1,16 @@
 ﻿using System.Text;
 using PeopleTeamsProjectsRepository.Data;
 using PeopleTeamsProjectsSample.Repository;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace PeopleTeamsProjectsRepository.Repository;
 
 public class Repositories
 {
+    private static readonly ActivitySource ActivitySource = new("PeopleTeamsRepository");
+    private static readonly ILogger Logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger("Repositories");
+    
     // Instantiate in-memory repositories with seeded data
     public IRepository<Person> People { get; } = new InMemoryRepository<Person>(SeedData.People);
     public IRepository<Team> Teams { get; } = new InMemoryRepository<Team>(SeedData.Teams);
@@ -13,6 +18,9 @@ public class Repositories
     // ---- Local Functions --------------------------------------
     public string ToFullList()
     {
+        using var activity = ActivitySource.StartActivity("ToFullList");
+        Logger.LogInformation("Generating full list at {Timestamp}", DateTime.UtcNow);
+        
         var builder = new StringBuilder();
 
         // People ------------------------------------------------
@@ -52,12 +60,20 @@ public class Repositories
             }
         }
 
-        return builder.ToString();
+        var result = builder.ToString();
+        Logger.LogInformation("Full list generated, length: {Length}", result.Length);
+        return result;
     }
 
     //AddPersonToTeam
     public string AddPersonToTeam(string personName, string teamName)
     {
+        using var activity = ActivitySource.StartActivity("AddPersonToTeam");
+        activity?.SetTag("person.name", personName);
+        activity?.SetTag("team.name", teamName);
+        
+        Logger.LogInformation("Adding {PersonName} to {TeamName} at {Timestamp}", personName, teamName, DateTime.UtcNow);
+        
         var person = People.GetAll().FirstOrDefault(p => p.Name.Equals(personName, StringComparison.OrdinalIgnoreCase));
         if (person is null)
             return $"Person '{personName}' not found.";
@@ -74,6 +90,8 @@ public class Repositories
         team = team with { MemberIds = team.MemberIds.Append(person.Id).ToList() };
         Teams.Update(team);
 
-        return $"Added {person.Name} to {team.Name}.";
+        var result = $"Added {person.Name} to {team.Name}.";
+        Logger.LogInformation("Successfully added {PersonName} to {TeamName}", personName, teamName);
+        return result;
     }
 }

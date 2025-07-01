@@ -52,6 +52,7 @@
                     });
                 
                 newConnection.on("ReceiveMessage", (message) => {
+                    console.log(`[TRACE] Received response at ${new Date().toISOString()}, length: ${message.length}`);
                     setMessages(prev => [...prev, { type: 'bot', content: message }]);
                 });
                 
@@ -64,8 +65,20 @@
             
             const sendMessage = async () => {
                 if (inputValue.trim() && connection) {
+                    const startTime = performance.now();
+                    console.log(`[TRACE] Sending message: "${inputValue}" at ${new Date().toISOString()}`);
+                    
                     setMessages(prev => [...prev, { type: 'user', content: inputValue }]);
-                    await connection.invoke("SendMessage", inputValue);
+                    
+                    try {
+                        await connection.invoke("SendMessage", inputValue);
+                        const endTime = performance.now();
+                        console.log(`[TRACE] Message sent successfully in ${(endTime - startTime).toFixed(2)}ms`);
+                    } catch (error) {
+                        console.error(`[TRACE] Error sending message:`, error);
+                        setMessages(prev => [...prev, { type: 'bot', content: 'Error: Failed to send message' }]);
+                    }
+                    
                     setInputValue('');
                 }
             };
