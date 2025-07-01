@@ -3,6 +3,11 @@ using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using Microsoft.AspNetCore.SignalR;
 using System.Diagnostics;
+using OpenTelemetry.Trace;     
+using OpenTelemetry.Exporter;
+
+
+using OpenTelemetry.Logs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
@@ -10,6 +15,7 @@ builder.WebHost.UseUrls("http://localhost:5001");
 
 // Add services
 builder.Services.AddSignalR();
+
 
 builder.Services.AddLogging(logging => logging.AddConsole());
 
@@ -40,6 +46,7 @@ public class ChatHub : Microsoft.AspNetCore.SignalR.Hub
     private readonly ILogger<ChatHub> _logger;
     private static IMcpClient? _mcpClient;
     private readonly Dictionary<string, List<ChatMessage>> _conversations = new();
+    private static readonly ActivitySource ActivitySource = new("PeopleTeamsChat");
 
     public ChatHub(IChatClient chatClient, ILogger<ChatHub> logger)
     {
@@ -49,8 +56,11 @@ public class ChatHub : Microsoft.AspNetCore.SignalR.Hub
 
     private async Task<IMcpClient> GetMcpClientAsync()
     {
+        using var activity = ActivitySource.StartActivity("GetMcpClient");
+        
         if (_mcpClient == null)
         {
+            using var initActivity = ActivitySource.StartActivity("InitializeMcpClient");
             _logger.LogInformation("Initializing MCP client connection");
             
             _mcpClient = await McpClientFactory.CreateAsync(
@@ -69,20 +79,30 @@ public class ChatHub : Microsoft.AspNetCore.SignalR.Hub
 
     public async Task SendMessage(string message)
     {
+        using var activity = ActivitySource.StartActivity("SendMessage");
         var connectionId = Context.ConnectionId;
         
         _logger.LogInformation("Received message from {ConnectionId}: {Message}", connectionId, message);
+        activity?.SetTag("connection.id", connectionId);
+        activity?.SetTag("message.length", message.Length);
         
         if (!_conversations.ContainsKey(connectionId))
             _conversations[connectionId] = new List<ChatMessage>();
 
         _conversations[connectionId].Add(new ChatMessage(ChatRole.User, message));
 
+        using var mcpActivity = ActivitySource.StartActivity("McpOperations");
         var mcpClient = await GetMcpClientAsync();
         
+        using var toolsActivity = ActivitySource.StartActivity("ListTools");
         var tools = await mcpClient.ListToolsAsync();
         _logger.LogInformation("Retrieved {ToolCount} tools from MCP server", tools.Count);
+        toolsActivity?.SetTag("tools.count", tools.Count);
+        toolsActivity?.Stop();
         
+        mcpActivity?.Stop();
+        
+        using var aiActivity = ActivitySource.StartActivity("GetAIResponse");
         var updates = new List<ChatResponseUpdate>();
         var responseText = new System.Text.StringBuilder();
         
@@ -93,6 +113,7 @@ public class ChatHub : Microsoft.AspNetCore.SignalR.Hub
                 responseText.Append(update.Text);
             updates.Add(update);
         }
+        aiActivity?.Stop();
         
         if (responseText.Length > 0)
         {
