@@ -12,7 +12,7 @@ public class McpTests(ITestOutputHelper outputHelper)
     [Fact]
     public async Task Connect()
     {
-        var filePath = GetFilePath(@"src\PeopleTeamsMcpServer\PeopleTeamsMcpServer.csproj");
+        var filePath = GetFilePath("src/PeopleTeamsMcpServer/PeopleTeamsMcpServer.csproj");
         outputHelper.WriteLine($"MCP project {filePath}");
         // new SseClientTransport()
         await using var mcpClient = await McpClientFactory.CreateAsync(new StdioClientTransport(new()
