@@ -1,4 +1,4 @@
-using Azure.AI.OpenAI;
+﻿using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using ModelContextProtocol.Client;
 using Microsoft.AspNetCore.SignalR;
@@ -20,7 +20,7 @@ string apiKey = builder.Configuration["AZURE_OPENAI_API_KEY"] ?? throw new Inval
 
 IChatClient chatClient = new ChatClientBuilder(
     new AzureOpenAIClient(new Uri(endpoint), new Azure.AzureKeyCredential(apiKey))
-    .GetChatClient("gpt-4o-mini").AsIChatClient())
+    .GetChatClient("gpt-4").AsIChatClient())
     .UseFunctionInvocation()
     .Build();
 
