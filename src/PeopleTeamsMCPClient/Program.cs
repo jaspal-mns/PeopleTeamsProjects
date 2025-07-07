@@ -12,6 +12,9 @@ var config = new ConfigurationBuilder()
     .Build();
 
 string endpoint = config["AZURE_OPENAI_ENDPOINT"] ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT not found");
+//Print endpoint
+Console.WriteLine($"Using Azure OpenAI endpoint: {endpoint}");
+
 string apiKey = config["AZURE_OPENAI_API_KEY"] ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY not found");
 
 
@@ -20,7 +23,7 @@ IChatClient client =
     new ChatClientBuilder(
         new AzureOpenAIClient(new Uri(endpoint),
         new Azure.AzureKeyCredential(apiKey))
-        .GetChatClient("gpt-4o-mini").AsIChatClient())
+        .GetChatClient("gpt-4").AsIChatClient())
     .UseFunctionInvocation()
     .Build();
 
